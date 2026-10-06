@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+
+{% block title %}Create Bill - Department Store{% endblock %}
+{% block page_title %}CREATE BILL{% endblock %}
+{% block page_subtitle %}Point of Sale & Real-time Customer Invoicing{% endblock %}
+
+{% block content %}
+<div id="bill-error-alert" class="alert alert-danger" style="display: none;"></div>
+
+<div class="billing-grid">
+  <!-- Left Side: POS Customer & Product Selection -->
+  <div>
+    <!-- CUSTOMER SECTION -->
+    <div class="card" style="margin-bottom: 20px;">
+      <div class="card-header">
+        <div class="card-title">&#128100; CUSTOMER</div>
+      </div>
+      <div class="card-body">
+        <div class="customer-type-selector">
+          <label class="radio-label">
+            <input type="radio" name="customer_type" id="type-existing" value="existing" checked>
+            <span>Existing Customer</span>
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="customer_type" id="type-walkin" value="walkin">
+            <span>Walk-in Customer</span>
+          </label>
+        </div>
+
+        <!-- Existing Customer Dropdown -->
+        <div id="existing-customer-block">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label" for="customer-select">Customer</label>
+            <select id="customer-select" class="form-control" style="font-size: 0.95rem;">
+              <option value="">-- Select Customer --</option>
+              {% for c in customers %}
+                <option value="{{ c.id }}" data-phone="{{ c.phone }}" data-balance="{{ c.outstanding_balance }}">
+                  {{ c.name }} {% if c.phone %}({{ c.phone }}){% endif %} - Due: &#8377;{{ "%.2f"|format(c.outstanding_balance) }}
+                </option>
+              {% endfor %}
+            </select>
+            {% if not customers %}
+              <small style="color: var(--warning); display: block; margin-top: 6px;">
+                No regular customers registered yet. <a href="{{ url_for('customers') }}">Add an account customer</a> or use Walk-in Customer.
+              </small>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Walk-in Customer Inputs -->
+        <div id="walkin-customer-block" style="display: none;">
+          <div class="form-row" style="margin-bottom: 0;">
+            <div class="form-col">
+              <label class="form-label" for="walkin-name">Customer Name *</label>
+              <input type="text" id="walkin-name" class="form-control" placeholder="Enter customer name">
+            </div>
+            <div class="form-col">
+              <label class="form-label" for="walkin-phone">Phone Number (Optional)</label>
+              <input type="text" id="walkin-phone" class="form-control" placeholder="e.g. 9876543210">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRODUCTS SECTION -->
+    <div class="card">
+      <div class="card-header" style="justify-content: space-between;">
+        <div class="card-title">&#128230; PRODUCTS</div>
+        <div style="display: flex; gap: 8px;">
+          <button type="button" id="add-row-btn" class="btn btn-sm btn-primary">
+            &#43; Add Product
+          </button>
+          <button type="button" id="quick-new-prod-btn" class="btn btn-sm btn-success">
+            &#43; New Product
+          </button>
+        </div>
+      </div>
+      <div class="card-body" style="padding: 0;">
+        <div class="table-responsive">
+          <table class="data-table bill-items-table">
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th class="text-right" style="width: 120px;">Qty</th>
+                <th class="text-right" style="width: 140px;">Price</th>
+                <th class="text-right" style="width: 140px;">Total</th>
+                <th class="text-center" style="width: 50px;"></th>
+              </tr>
+            </thead>
+            <tbody id="bill-items-tbody">
+              <!-- Dynamically populated rows -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style="padding: 14px 20px; background: #f8fafc; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; gap: 8px;">
+          <button type="button" class="btn btn-sm btn-secondary" onclick="document.getElementById('add-row-btn').click();">
+            &#43; Add Product
+          </button>
+          <button type="button" class="btn btn-sm btn-secondary" onclick="document.getElementById('quick-new-prod-btn').click();">
+            &#43; New Product
+          </button>
+        </div>
+        <span style="font-size: 0.8rem; color: var(--text-muted);">
+          Prices automatically load from master catalog and freeze at bill creation.
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Side: POS BILL SUMMARY -->
+  <div>
+    <div class="card bill-summary-card">
+      <div class="card-header">
+        <div class="card-title">&#128196; BILL SUMMARY</div>
+      </div>
+      <div class="card-body">
+        <!-- Subtotal -->
+        <div class="summary-line">
+          <span style="color: var(--secondary); font-weight: 600;">Subtotal</span>
+          <strong id="subtotal-display" style="font-size: 1.15rem;">&#8377;0.00</strong>
+        </div>
+
+        <!-- Discount -->
+        <div class="summary-line" style="align-items: center;">
+          <span style="color: var(--secondary); font-weight: 600;">Discount</span>
+          <div style="display: flex; align-items: center; width: 130px;">
+            <span style="margin-right: 4px; font-weight: 600;">&#8377;</span>
+            <input type="number" id="discount-input" class="form-control text-right" step="0.01" min="0" value="0.00">
+          </div>
+        </div>
+
+        <!-- Grand Total -->
+        <div class="summary-line grand-total">
+          <span>Grand Total</span>
+          <span id="grand-total-display">&#8377;0.00</span>
+        </div>
+
+        <!-- Paid Amount -->
+        <div class="summary-line" style="align-items: center; padding-top: 12px;">
+          <div>
+            <span style="color: var(--secondary); font-weight: 600; display: block;">Paid Amount</span>
+            <button type="button" id="pay-full-btn" class="btn btn-sm btn-secondary" style="font-size: 0.72rem; padding: 2px 6px; margin-top: 2px;">
+              Pay Full
+            </button>
+          </div>
+          <div style="display: flex; align-items: center; width: 130px;">
+            <span style="margin-right: 4px; font-weight: 600;">&#8377;</span>
+            <input type="number" id="paid-amount-input" class="form-control text-right" step="0.01" min="0" value="0.00">
+          </div>
+        </div>
+
+        <!-- Balance -->
+        <div class="summary-line balance-due" style="padding: 12px 0;">
+          <span style="font-size: 1rem;">Balance</span>
+          <span id="balance-display" style="font-size: 1.25rem;">&#8377;0.00</span>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="margin-top: 20px; display: flex; flex-direction: column; gap: 10px;">
+          <button type="button" id="generate-bill-btn" class="btn btn-primary btn-lg" style="width: 100%; font-weight: 700;">
+            &#128462; GENERATE PDF BILL
+          </button>
+          <button type="button" id="clear-bill-btn" class="btn btn-secondary" style="width: 100%;">
+            &#128465; CLEAR BILL
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL 1: ADD NEW PRODUCT DIRECTLY (Section 1) ==================== -->
+<div id="quick-add-product-modal" class="modal-overlay">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title">&#43; ADD NEW PRODUCT</div>
+      <button type="button" class="modal-close" onclick="closeQuickProductModal()">&times;</button>
+    </div>
+    <form id="quick-add-product-form" onsubmit="handleQuickProductSubmit(event)">
+      <div class="modal-body">
+        <div id="quick-prod-error" class="alert alert-danger" style="display: none; margin-bottom: 14px;"></div>
+
+        <div class="form-group">
+          <label class="form-label" for="qp-name">Product Name *</label>
+          <input type="text" id="qp-name" class="form-control" placeholder="e.g. Milk, Rice, Sugar" required>
+        </div>
+
+        <div class="form-row">
+          <div class="form-col">
+            <label class="form-label" for="qp-price">Price (&#8377;) *</label>
+            <input type="number" id="qp-price" class="form-control" step="0.01" min="0.01" placeholder="0.00" required>
+          </div>
+          <div class="form-col">
+            <label class="form-label" for="qp-unit">Unit *</label>
+            <input type="text" id="qp-unit" class="form-control" placeholder="e.g. 1L, 1kg, piece" required>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeQuickProductModal()">Cancel</button>
+        <button type="submit" id="qp-submit-btn" class="btn btn-primary">Add Product</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ==================== MODAL 2: CLEAR BILL CONFIRMATION (Section 16) ==================== -->
+<div id="clear-bill-modal" class="modal-overlay">
+  <div class="modal-content" style="max-width: 420px;">
+    <div class="modal-header">
+      <div class="modal-title">Clear Current Bill?</div>
+      <button type="button" class="modal-close" onclick="closeClearModal()">&times;</button>
+    </div>
+    <div class="modal-body" style="padding: 24px; text-align: center;">
+      <div style="font-size: 2.4rem; color: var(--warning); margin-bottom: 12px;">&#9888;</div>
+      <p style="font-size: 1rem; color: var(--text-main); font-weight: 600; margin-bottom: 8px;">
+        Clear all items from the current bill?
+      </p>
+      <p style="font-size: 0.85rem; color: var(--text-muted);">
+        All entered items, customer selections, and discounts will be reset. The database will not be affected.
+      </p>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeClearModal()">Cancel</button>
+      <button type="button" id="confirm-clear-btn" class="btn btn-danger">Yes, Clear Bill</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL 3: BILL SUCCESS ==================== -->
+<div id="bill-success-modal" class="modal-overlay">
+  <div class="modal-content" style="max-width: 480px;">
+    <div class="modal-header" style="background: #ecfdf5; border-bottom: 1px solid #a7f3d0;">
+      <div class="modal-title" style="color: #065f46; display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 1.4rem;">&#9989;</span> Bill Generated Successfully!
+      </div>
+      <button type="button" id="modal-close-btn" class="modal-close">&times;</button>
+    </div>
+    <div class="modal-body" style="text-align: center; padding: 28px 24px;">
+      <p style="color: var(--text-muted); font-size: 0.95rem;">Invoice generated with bill number:</p>
+      <div id="modal-bill-number" style="font-size: 2rem; font-weight: 800; color: var(--primary); margin: 10px 0 20px 0;">
+        BILL-1001
+      </div>
+      <p style="font-size: 0.85rem; color: var(--secondary); margin-bottom: 24px;">
+        Saved to database and printable PDF invoice compiled.
+      </p>
+
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <a id="modal-download-btn" href="#" class="btn btn-primary btn-lg" style="width: 100%;">
+          &#128196; Download PDF Invoice
+        </a>
+        <div style="display: flex; gap: 10px;">
+          <button type="button" id="modal-print-btn" class="btn btn-secondary" style="flex: 1;">
+            &#128424; Print Bill
+          </button>
+          <a id="modal-view-btn" href="#" class="btn btn-secondary" style="flex: 1;">
+            &#128065; View Details
+          </a>
+        </div>
+        <button type="button" id="modal-new-bill-btn" class="btn btn-success" style="width: 100%; margin-top: 6px;">
+          &#43; Create New Bill
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.AVAILABLE_PRODUCTS = [
+    {% for p in products %}
+      {
+        id: {{ p.id }},
+        name: "{{ p.name|replace('"', '\\"') }}",
+        price: {{ p.price }},
+        unit: "{{ p.unit|replace('"', '\\"') }}"
+      }{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ];
+</script>
+<script src="{{ url_for('static', filename='js/billing.js') }}"></script>
+{% endblock %}

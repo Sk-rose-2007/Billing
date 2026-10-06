@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}Reports - Department Store{% endblock %}
+{% block page_title %}Reports & Analytics{% endblock %}
+{% block page_subtitle %}Monthly revenue trends & customer ledger balances{% endblock %}
+
+{% block content %}
+<!-- Top Stats Row -->
+<div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+  <div class="stat-card">
+    <div class="stat-header">
+      <span class="stat-title">This Month Sales</span>
+      <div class="stat-icon orange">&#128200;</div>
+    </div>
+    <div class="stat-value">&#8377;{{ "%.2f"|format(stats.monthly_sales) }}</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-header">
+      <span class="stat-title">Today's Revenue</span>
+      <div class="stat-icon green">&#8377;</div>
+    </div>
+    <div class="stat-value">&#8377;{{ "%.2f"|format(stats.today_sales) }}</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-header">
+      <span class="stat-title">Total Active Accounts</span>
+      <div class="stat-icon purple">&#128101;</div>
+    </div>
+    <div class="stat-value">{{ stats.total_customers }}</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-header">
+      <span class="stat-title">Total Store Dues</span>
+      <div class="stat-icon red">&#9888;</div>
+    </div>
+    <div class="stat-value" style="color: #dc2626;">&#8377;{{ "%.2f"|format(stats.total_outstanding_balance) }}</div>
+  </div>
+</div>
+
+<!-- Monthly Sales Trend Table -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">Monthly Sales Trend</div>
+    <span style="font-size: 0.8rem; color: var(--text-muted);">Historical revenue and collection</span>
+  </div>
+  <div class="card-body" style="padding: 0;">
+    {% if report_data.monthly_trend %}
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Month</th>
+              <th class="text-right">Bills Generated</th>
+              <th class="text-right">Total Revenue</th>
+              <th class="text-right">Total Collected</th>
+              <th class="text-right">Pending Balance</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for m in report_data.monthly_trend %}
+              <tr>
+                <td><strong>{{ m.month_str }}</strong></td>
+                <td class="text-right">{{ m.bill_count }}</td>
+                <td class="text-right" style="font-weight: 700; color: var(--primary);">&#8377;{{ "%.2f"|format(m.total_sales) }}</td>
+                <td class="text-right" style="color: var(--success);">&#8377;{{ "%.2f"|format(m.total_collected) }}</td>
+                <td class="text-right" style="color: {% if (m.total_sales - m.total_collected) > 0 %}var(--danger){% else %}var(--success){% endif %}; font-weight: 700;">
+                  &#8377;{{ "%.2f"|format(m.total_sales - m.total_collected) }}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div style="padding: 30px; text-align: center; color: var(--text-muted);">
+        No historical sales data available yet.
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Customer Outstanding Dues Ranking -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">Outstanding Customer Balances</div>
+    <span style="font-size: 0.8rem; color: var(--text-muted);">Account customers with pending balances</span>
+  </div>
+  <div class="card-body" style="padding: 0;">
+    {% if report_data.customer_balances %}
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Customer</th>
+              <th>Phone</th>
+              <th class="text-right">Total Purchases</th>
+              <th class="text-right">Total Paid</th>
+              <th class="text-right">Outstanding Balance</th>
+              <th class="text-center" style="width: 140px;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in report_data.customer_balances %}
+              <tr>
+                <td><strong>{{ c.name }}</strong></td>
+                <td>{{ c.phone }}</td>
+                <td class="text-right">&#8377;{{ "%.2f"|format(c.total_purchases) }}</td>
+                <td class="text-right" style="color: var(--success);">&#8377;{{ "%.2f"|format(c.total_paid) }}</td>
+                <td class="text-right" style="color: var(--danger); font-weight: 700; font-size: 1.05rem;">
+                  &#8377;{{ "%.2f"|format(c.outstanding_balance) }}
+                </td>
+                <td class="text-center">
+                  <a href="{{ url_for('customer_details', customer_id=c.id) }}" class="btn btn-sm btn-primary">
+                    View Account &rarr;
+                  </a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div style="padding: 30px; text-align: center; color: var(--success);">
+        &#10003; All customer accounts are fully settled! No pending balances.
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

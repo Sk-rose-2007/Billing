@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Department Store Billing System{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  <!-- Mobile Backdrop -->
+  <div id="mobile-backdrop" class="mobile-backdrop" onclick="toggleSidebar()"></div>
+
+  <div class="app-container">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" id="app-sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo-icon">&#128722;</div>
+        <div>
+          <div class="sidebar-title">DEPT STORE</div>
+          <div class="sidebar-subtitle">Billing & Accounts</div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+          <span class="nav-icon">&#128202;</span>
+          <span class="nav-text">Dashboard</span>
+        </a>
+        <a href="{{ url_for('billing') }}" class="nav-link {% if request.endpoint == 'billing' %}active{% endif %}">
+          <span class="nav-icon">&#128179;</span>
+          <span class="nav-text">Create Bill</span>
+        </a>
+        <a href="{{ url_for('bills') }}" class="nav-link {% if request.endpoint in ['bills', 'view_bill'] %}active{% endif %}">
+          <span class="nav-icon">&#128221;</span>
+          <span class="nav-text">Bills</span>
+        </a>
+        <a href="{{ url_for('products') }}" class="nav-link {% if request.endpoint == 'products' %}active{% endif %}">
+          <span class="nav-icon">&#128230;</span>
+          <span class="nav-text">Products</span>
+        </a>
+        <a href="{{ url_for('customers') }}" class="nav-link {% if request.endpoint in ['customers', 'customer_details'] %}active{% endif %}">
+          <span class="nav-icon">&#128101;</span>
+          <span class="nav-text">Customers</span>
+        </a>
+        <a href="{{ url_for('reports') }}" class="nav-link {% if request.endpoint == 'reports' %}active{% endif %}">
+          <span class="nav-icon">&#128197;</span>
+          <span class="nav-text">Reports</span>
+        </a>
+        <a href="{{ url_for('settings') }}" class="nav-link {% if request.endpoint in ['settings', 'save_settings'] %}active{% endif %}">
+          <span class="nav-icon">&#9881;</span>
+          <span class="nav-text">Settings</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-badge">
+          <div class="user-info">
+            <div class="user-avatar">{{ session.get('username', 'A')[0]|upper }}</div>
+            <div>
+              <div style="font-weight: 600; color: #fff;">{{ session.get('username', 'Admin') }}</div>
+              <div style="font-size: 0.72rem; color: #94a3b8;">Shop Manager</div>
+            </div>
+          </div>
+          <a href="{{ url_for('logout') }}" title="Logout" style="color: #ef4444; font-size: 1.1rem; text-decoration: none;">&#10140;</a>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <header class="top-navbar">
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <!-- Hamburger Menu for Mobile -->
+          <button type="button" class="mobile-menu-btn" onclick="toggleSidebar()" aria-label="Toggle Navigation">
+            &#9776;
+          </button>
+          <div class="page-title-wrap">
+            <h1>{% block page_title %}Department Store{% endblock %}</h1>
+            <p>{% block page_subtitle %}Point of Sale & Account Ledger{% endblock %}</p>
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <a href="{{ url_for('billing') }}" class="btn btn-primary btn-sm">
+            &#43; New Bill
+          </a>
+        </div>
+      </header>
+
+      <div class="content-body">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }}">
+                <span>{{ message }}</span>
+                <button type="button" class="alert-close" onclick="this.parentElement.remove();">&times;</button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+  </div>
+
+  <script>
+    function toggleSidebar() {
+      const sidebar = document.getElementById('app-sidebar');
+      const backdrop = document.getElementById('mobile-backdrop');
+      if (sidebar) sidebar.classList.toggle('mobile-open');
+      if (backdrop) backdrop.classList.toggle('active');
+    }
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+
+{% block title %}Products - Department Store{% endblock %}
+{% block page_title %}Product Management{% endblock %}
+{% block page_subtitle %}Master product catalog and dynamic price configuration{% endblock %}
+
+{% block content %}
+<!-- Top Action Bar: Search & Add Product -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 14px;">
+  <form action="{{ url_for('products') }}" method="GET" style="display: flex; gap: 8px; flex: 1; max-width: 420px;">
+    <input type="text" name="search" class="form-control" placeholder="Search by product name..." value="{{ search_query }}">
+    <button type="submit" class="btn btn-secondary">Search</button>
+    {% if search_query %}
+      <a href="{{ url_for('products') }}" class="btn btn-secondary" title="Clear Search">&times;</a>
+    {% endif %}
+  </form>
+
+  <div>
+    <button type="button" class="btn btn-primary" onclick="openAddModal()">
+      &#43; Add Product
+    </button>
+  </div>
+</div>
+
+<!-- Products Table Card -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">All Products ({{ products|length }})</div>
+    <span style="font-size: 0.8rem; color: var(--text-muted);">
+      Price modifications immediately apply to all future bills. Existing bills remain untouched.
+    </span>
+  </div>
+  <div class="card-body" style="padding: 0;">
+    {% if products %}
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width: 70px;">ID</th>
+              <th>Product Name</th>
+              <th>Unit / Packaging</th>
+              <th class="text-right">Current Price</th>
+              <th>Last Updated</th>
+              <th class="text-center" style="width: 170px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in products %}
+              <tr>
+                <td>#{{ p.id }}</td>
+                <td><strong>{{ p.name }}</strong></td>
+                <td><span class="badge badge-secondary">{{ p.unit }}</span></td>
+                <td class="text-right" style="font-size: 1.05rem; font-weight: 700; color: var(--primary);">
+                  &#8377;{{ "%.2f"|format(p.price) }}
+                </td>
+                <td style="font-size: 0.82rem; color: var(--text-muted);">{{ p.updated_at }}</td>
+                <td class="text-center">
+                  <div class="btn-group">
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="openEditModal({{ p.id }}, '{{ p.name|replace("'", "\\'") }}', {{ p.price }}, '{{ p.unit|replace("'", "\\'") }}')">
+                      &#9998; Edit
+                    </button>
+                    <button type="button" class="btn btn-sm btn-danger" onclick="openDeleteProdModal({{ p.id }}, '{{ p.name|replace("'", "\\'") }}')">
+                      Delete
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <!-- Empty State (Section 12) -->
+      <div style="padding: 50px 20px; text-align: center; color: var(--text-muted);">
+        <div style="font-size: 3rem; margin-bottom: 12px; opacity: 0.6;">&#128230;</div>
+        <h3 style="color: var(--text-main); font-size: 1.25rem; font-weight: 700; margin-bottom: 6px;">No Products Yet</h3>
+        <p style="font-size: 0.92rem; margin-bottom: 20px;">Add your first product to start creating bills.</p>
+        <button type="button" class="btn btn-primary btn-lg" onclick="openAddModal()">&#43; Add Product</button>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Add Product Modal -->
+<div id="add-product-modal" class="modal-overlay">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title">&#43; Add Product</div>
+      <button type="button" class="modal-close" onclick="closeAddModal()">&times;</button>
+    </div>
+    <form action="{{ url_for('add_product') }}" method="POST">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="add-name">Product Name *</label>
+          <input type="text" id="add-name" name="name" class="form-control" placeholder="e.g. Basmati Rice, Sunflower Oil" required>
+        </div>
+        <div class="form-row">
+          <div class="form-col">
+            <label class="form-label" for="add-price">Price (&#8377;) *</label>
+            <input type="number" id="add-price" name="price" class="form-control" step="0.01" min="0.01" placeholder="0.00" required>
+          </div>
+          <div class="form-col">
+            <label class="form-label" for="add-unit">Unit *</label>
+            <input type="text" id="add-unit" name="unit" class="form-control" placeholder="e.g. 1kg, 5kg, 1L, piece" required>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeAddModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Product</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Product & Price Modal (Section 8) -->
+<div id="edit-product-modal" class="modal-overlay">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title">&#9998; Edit Product</div>
+      <button type="button" class="modal-close" onclick="closeEditModal()">&times;</button>
+    </div>
+    <form id="edit-product-form" action="" method="POST">
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="edit-name">Product Name *</label>
+          <input type="text" id="edit-name" name="name" class="form-control" required>
+        </div>
+        <div class="form-row">
+          <div class="form-col">
+            <label class="form-label" for="edit-price">Price (&#8377;) *</label>
+            <input type="number" id="edit-price" name="price" class="form-control" step="0.01" min="0.01" required>
+            <small style="color: var(--text-muted); font-size: 0.75rem;">Modifying price only affects future bills.</small>
+          </div>
+          <div class="form-col">
+            <label class="form-label" for="edit-unit">Unit *</label>
+            <input type="text" id="edit-unit" name="unit" class="form-control" required>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Update Product</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Delete Product Confirmation Modal (Custom UI) -->
+<div id="delete-prod-modal" class="modal-overlay">
+  <div class="modal-content" style="max-width: 440px;">
+    <div class="modal-header" style="background: #fef2f2; border-bottom: 1px solid #fecaca;">
+      <div class="modal-title" style="color: #991b1b;">Delete Product?</div>
+      <button type="button" class="modal-close" onclick="closeDeleteProdModal()">&times;</button>
+    </div>
+    <form id="delete-prod-form" action="" method="POST">
+      <div class="modal-body" style="padding: 24px;">
+        <p style="font-size: 0.95rem; margin-bottom: 8px;">
+          Are you sure you want to delete <strong id="del-prod-name">Product</strong>?
+        </p>
+        <p style="font-size: 0.82rem; color: var(--text-muted);">
+          Past bills that include this item will remain completely preserved in the ledger.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeDeleteProdModal()">Cancel</button>
+        <button type="submit" class="btn btn-danger">Delete Product</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function openAddModal() {
+    document.getElementById('add-product-modal').classList.add('active');
+    document.getElementById('add-name').focus();
+  }
+  function closeAddModal() {
+    document.getElementById('add-product-modal').classList.remove('active');
+  }
+
+  function openEditModal(id, name, price, unit) {
+    const form = document.getElementById('edit-product-form');
+    form.action = `/products/edit/${id}`;
+    document.getElementById('edit-name').value = name;
+    document.getElementById('edit-price').value = price.toFixed(2);
+    document.getElementById('edit-unit').value = unit;
+    document.getElementById('edit-product-modal').classList.add('active');
+    document.getElementById('edit-price').focus();
+  }
+  function closeEditModal() {
+    document.getElementById('edit-product-modal').classList.remove('active');
+  }
+
+  function openDeleteProdModal(id, name) {
+    document.getElementById('delete-prod-form').action = `/products/delete/${id}`;
+    document.getElementById('del-prod-name').textContent = name;
+    document.getElementById('delete-prod-modal').classList.add('active');
+  }
+  function closeDeleteProdModal() {
+    document.getElementById('delete-prod-modal').classList.remove('active');
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      closeAddModal();
+      closeEditModal();
+      closeDeleteProdModal();
+    }
+  });
+</script>
+{% endblock %}

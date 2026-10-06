@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+
+{% block title %}All Bills - Department Store{% endblock %}
+{% block page_title %}Bills Directory{% endblock %}
+{% block page_subtitle %}Search, reprint invoices, and manage completed store bills{% endblock %}
+
+{% block content %}
+<!-- Search & Filter Controls (Section 13) -->
+<div class="card" style="margin-bottom: 24px;">
+  <div class="card-body">
+    <form action="{{ url_for('bills') }}" method="GET" style="display: flex; flex-direction: column; gap: 14px;">
+      <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+        <!-- Search Query -->
+        <div style="flex: 2; min-width: 250px;">
+          <input type="text" name="search" class="form-control" placeholder="Search by Bill No, Customer Name, or Phone..." value="{{ search }}">
+        </div>
+
+        <!-- Period Filter -->
+        <div style="flex: 1; min-width: 140px;">
+          <select name="period" id="period-select" class="form-control" onchange="toggleCustomDates()">
+            <option value="all" {% if period == 'all' %}selected{% endif %}>All Time</option>
+            <option value="today" {% if period == 'today' %}selected{% endif %}>Today</option>
+            <option value="week" {% if period == 'week' %}selected{% endif %}>This Week</option>
+            <option value="month" {% if period == 'month' %}selected{% endif %}>This Month</option>
+            <option value="custom" {% if period == 'custom' %}selected{% endif %}>Custom Range</option>
+          </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Apply Filters</button>
+        {% if search or period != 'all' or from_date or to_date %}
+          <a href="{{ url_for('bills') }}" class="btn btn-secondary">Reset</a>
+        {% endif %}
+      </div>
+
+      <!-- Custom Date Range Row -->
+      <div id="custom-dates-row" style="display: {% if period == 'custom' %}flex{% else %}none{% endif %}; gap: 12px; align-items: center; flex-wrap: wrap;">
+        <span style="font-size: 0.85rem; color: var(--secondary);">From:</span>
+        <input type="date" name="from_date" class="form-control" style="width: 160px;" value="{{ from_date }}">
+        <span style="font-size: 0.85rem; color: var(--secondary);">To:</span>
+        <input type="date" name="to_date" class="form-control" style="width: 160px;" value="{{ to_date }}">
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Bills Table Card -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">All Bills ({{ bills|length }})</div>
+    <a href="{{ url_for('billing') }}" class="btn btn-sm btn-primary">&#43; Create Bill</a>
+  </div>
+  <div class="card-body" style="padding: 0;">
+    {% if bills %}
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Bill Number</th>
+              <th>Date</th>
+              <th>Customer</th>
+              <th>Type</th>
+              <th class="text-right">Grand Total</th>
+              <th class="text-right">Paid</th>
+              <th class="text-right">Balance</th>
+              <th>Status</th>
+              <th class="text-center" style="width: 190px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for b in bills %}
+              <tr>
+                <td>
+                  <a href="{{ url_for('view_bill', bill_id=b.id) }}" style="font-weight: 700; color: var(--primary); text-decoration: none;">
+                    {{ b.bill_number }}
+                  </a>
+                </td>
+                <td>{{ b.bill_date }}</td>
+                <td>
+                  <strong>{{ b.customer_name }}</strong>
+                  {% if b.customer_phone %}
+                    <br><span style="font-size: 0.78rem; color: var(--text-muted);">{{ b.customer_phone }}</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if b.customer_type == 'existing' %}
+                    <span class="badge badge-info">Account</span>
+                  {% else %}
+                    <span class="badge badge-secondary">Walk-in</span>
+                  {% endif %}
+                </td>
+                <td class="text-right" style="font-weight: 700;">&#8377;{{ "%.2f"|format(b.grand_total) }}</td>
+                <td class="text-right">&#8377;{{ "%.2f"|format(b.paid_amount) }}</td>
+                <td class="text-right">
+                  {% if b.balance > 0 %}
+                    <span style="color: var(--danger); font-weight: 700;">&#8377;{{ "%.2f"|format(b.balance) }}</span>
+                  {% else %}
+                    <span style="color: var(--success);">&#8377;0.00</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if b.balance <= 0 %}
+                    <span class="badge badge-success">Paid</span>
+                  {% elif b.paid_amount > 0 %}
+                    <span class="badge badge-warning">Partial</span>
+                  {% else %}
+                    <span class="badge badge-danger">Unpaid</span>
+                  {% endif %}
+                </td>
+                <td class="text-center">
+                  <div class="btn-group">
+                    <a href="{{ url_for('view_bill', bill_id=b.id) }}" class="btn btn-sm btn-secondary" title="View Bill Details">
+                      View
+                    </a>
+                    <a href="{{ url_for('download_pdf', bill_id=b.id) }}" class="btn btn-sm btn-secondary" title="Download PDF">
+                      PDF
+                    </a>
+                    <button type="button" class="btn btn-sm btn-danger" title="Delete Bill" onclick="openDeleteBillModal({{ b.id }})">
+                      Delete
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <!-- Empty State (Section 12) -->
+      <div style="padding: 50px 20px; text-align: center; color: var(--text-muted);">
+        <div style="font-size: 3rem; margin-bottom: 12px; opacity: 0.6;">&#128221;</div>
+        <h3 style="color: var(--text-main); font-size: 1.25rem; font-weight: 700; margin-bottom: 6px;">No Bills Yet</h3>
+        <p style="font-size: 0.92rem; margin-bottom: 20px;">Create your first bill to see it here.</p>
+        <a href="{{ url_for('billing') }}" class="btn btn-primary btn-lg">Create Bill</a>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ==================== DELETE CONFIRMATION MODAL (Section 3, 5, 15) ==================== -->
+<div id="delete-bill-modal" class="modal-overlay">
+  <div class="modal-content" style="max-width: 460px;">
+    <div class="modal-header" style="background: #fef2f2; border-bottom: 1px solid #fecaca;">
+      <div class="modal-title" style="color: #991b1b; display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 1.3rem;">&#9888;</span> Delete Bill?
+      </div>
+      <button type="button" class="modal-close" onclick="closeDeleteBillModal()">&times;</button>
+    </div>
+    <form id="delete-bill-form" action="" method="POST">
+      <div class="modal-body" style="padding: 24px;">
+        <div style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--border-radius-sm); padding: 14px; margin-bottom: 16px;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+            <span style="color: var(--text-muted); font-size: 0.85rem;">Bill Number:</span>
+            <strong id="del-bill-number" style="font-size: 1rem; color: var(--primary);">BILL-0000</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+            <span style="color: var(--text-muted); font-size: 0.85rem;">Customer:</span>
+            <strong id="del-bill-customer" style="font-size: 0.95rem;">Customer</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span style="color: var(--text-muted); font-size: 0.85rem;">Amount:</span>
+            <strong id="del-bill-amount" style="font-size: 1.1rem; color: var(--text-main);">&#8377;0.00</strong>
+          </div>
+        </div>
+
+        <div id="del-payment-warning" class="alert alert-warning" style="display: none; font-size: 0.82rem; line-height: 1.4; margin-bottom: 14px;">
+          <strong>Notice:</strong> This bill has payment records. Deleting this bill will also remove its related payment records and recalculate the customer's account balance.
+        </div>
+
+        <p style="color: var(--danger); font-size: 0.85rem; font-weight: 600; margin: 0;">
+          Warning: This action cannot be undone.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeDeleteBillModal()">Cancel</button>
+        <button type="submit" class="btn btn-danger">Delete Bill</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function toggleCustomDates() {
+    const sel = document.getElementById('period-select');
+    const customRow = document.getElementById('custom-dates-row');
+    if (sel.value === 'custom') {
+      customRow.style.display = 'flex';
+    } else {
+      customRow.style.display = 'none';
+    }
+  }
+
+  // Open custom Delete Bill modal with server-verified info
+  function openDeleteBillModal(billId) {
+    const modal = document.getElementById('delete-bill-modal');
+    const form = document.getElementById('delete-bill-form');
+    form.action = `/bills/delete/${billId}`;
+
+    // Fetch bill details
+    fetch(`/bills/${billId}/info`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          const b = data.bill;
+          document.getElementById('del-bill-number').textContent = b.bill_number;
+          document.getElementById('del-bill-customer').textContent = b.customer_name;
+          document.getElementById('del-bill-amount').textContent = '₹' + b.grand_total.toFixed(2);
+
+          const payWarning = document.getElementById('del-payment-warning');
+          if (b.has_payments) {
+            payWarning.style.display = 'block';
+          } else {
+            payWarning.style.display = 'none';
+          }
+
+          modal.classList.add('active');
+        } else {
+          alert('Unable to retrieve bill info.');
+        }
+      })
+      .catch(err => {
+        alert('Network error: ' + err.message);
+      });
+  }
+
+  function closeDeleteBillModal() {
+    document.getElementById('delete-bill-modal').classList.remove('active');
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      closeDeleteBillModal();
+    }
+  });
+</script>
+{% endblock %}

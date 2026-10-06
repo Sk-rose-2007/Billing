@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}Invoice {{ bill.bill_number }} - Department Store{% endblock %}
+{% block page_title %}{{ bill.bill_number }}{% endblock %}
+{% block page_subtitle %}Invoice preview and print receipt{% endblock %}
+
+{% block content %}
+<!-- Top Action Bar (hidden when printing) -->
+<div class="no-print" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px;">
+  <div style="display: flex; gap: 10px;">
+    <button type="button" class="btn btn-primary" onclick="window.print()">
+      &#128424; Print Bill
+    </button>
+    <a href="{{ url_for('download_pdf', bill_id=bill.id) }}" class="btn btn-secondary">
+      &#128196; Download PDF
+    </a>
+  </div>
+
+  <div style="display: flex; gap: 10px;">
+    {% if bill.customer_id %}
+      <a href="{{ url_for('customer_details', customer_id=bill.customer_id) }}" class="btn btn-secondary">
+        &#128101; View Customer Account
+      </a>
+    {% endif %}
+    <a href="{{ url_for('bills') }}" class="btn btn-secondary">&larr; Back to Bills</a>
+  </div>
+</div>
+
+<!-- Printable Invoice Card -->
+<div class="invoice-preview-card">
+  <!-- Invoice Header -->
+  <div class="invoice-header">
+    <h2>DEPARTMENT STORE</h2>
+    <p style="color: var(--secondary); font-size: 0.9rem; margin-top: 4px;">
+      123 Main Market Street, Central Bazaar &bull; Phone: +91 98765 43210
+    </p>
+    <p style="color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; margin-top: 2px;">
+      Retail Cash / Credit Invoice
+    </p>
+  </div>
+
+  <!-- Meta Information -->
+  <div class="invoice-meta-grid">
+    <div>
+      <p><strong>Bill No:</strong> <span style="font-family: monospace; font-size: 1.05rem;">{{ bill.bill_number }}</span></p>
+      <p><strong>Date & Time:</strong> {{ bill.bill_date }}</p>
+      <p>
+        <strong>Payment Status:</strong> 
+        {% if bill.balance <= 0 %}
+          <span class="badge badge-success">Paid in Full</span>
+        {% else %}
+          <span class="badge badge-danger">Balance Due (&#8377;{{ "%.2f"|format(bill.balance) }})</span>
+        {% endif %}
+      </p>
+    </div>
+
+    <div>
+      <p><strong>Customer Name:</strong> {{ bill.customer_name }}</p>
+      <p><strong>Phone:</strong> {{ bill.customer_phone or 'N/A' }}</p>
+      <p>
+        <strong>Customer Type:</strong> 
+        {% if bill.customer_type == 'existing' %}
+          <span class="badge badge-info">Account Customer</span>
+        {% else %}
+          <span class="badge badge-secondary">Walk-in Customer</span>
+        {% endif %}
+      </p>
+    </div>
+  </div>
+
+  <!-- Itemized Table -->
+  <table class="data-table" style="margin-bottom: 24px; border: 1px solid var(--border-color);">
+    <thead>
+      <tr style="background: #1e293b; color: white;">
+        <th style="color: white; width: 40px;">#</th>
+        <th style="color: white;">Product Description</th>
+        <th style="color: white;" class="text-right">Quantity</th>
+        <th style="color: white;" class="text-right">Price</th>
+        <th style="color: white;" class="text-right">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td><strong>{{ item.product_name }}</strong></td>
+          <td class="text-right">{{ item.quantity }}</td>
+          <td class="text-right">&#8377;{{ "%.2f"|format(item.price) }}</td>
+          <td class="text-right" style="font-weight: 700;">&#8377;{{ "%.2f"|format(item.total) }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Financial Summary Box -->
+  <div style="display: flex; justify-content: flex-end; margin-bottom: 30px;">
+    <div style="width: 320px;">
+      <div class="summary-line">
+        <span style="font-weight: 600; color: var(--secondary);">Subtotal:</span>
+        <strong>&#8377;{{ "%.2f"|format(bill.subtotal) }}</strong>
+      </div>
+      <div class="summary-line">
+        <span style="font-weight: 600; color: var(--secondary);">Discount:</span>
+        <span>&minus; &#8377;{{ "%.2f"|format(bill.discount) }}</span>
+      </div>
+      <div class="summary-line grand-total" style="font-size: 1.25rem;">
+        <span>Grand Total:</span>
+        <span>&#8377;{{ "%.2f"|format(bill.grand_total) }}</span>
+      </div>
+      <div class="summary-line">
+        <span style="font-weight: 600; color: var(--secondary);">Paid Amount:</span>
+        <strong style="color: var(--success);">&#8377;{{ "%.2f"|format(bill.paid_amount) }}</strong>
+      </div>
+      <div class="summary-line balance-due">
+        <span>Balance Remaining:</span>
+        <span>&#8377;{{ "%.2f"|format(bill.balance) }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer Notice -->
+  <div style="text-align: center; border-top: 1px solid var(--border-color); padding-top: 20px; color: var(--text-muted); font-size: 0.82rem;">
+    <p style="font-weight: 700; color: var(--text-main); font-size: 1rem; margin-bottom: 4px;">Thank You! Visit Again.</p>
+    <p>Goods once sold can be exchanged within 7 days against this original invoice.</p>
+    <p>This is a computer-generated bill. No physical signature is required.</p>
+  </div>
+</div>
+{% endblock %}
